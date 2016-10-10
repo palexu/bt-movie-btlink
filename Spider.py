@@ -89,16 +89,16 @@ class Movie:
     def getMovie(self,movie):
         spider=Spider()
         rs=spider.search(movie)
-        hasFound=spider.found(movie,rs)
-        # if hasFound:
-        #     result=spider.getMagnet(hasFound)
-        #     for item in result:
-        #         print("%s  %s"%(item['name'],item['thunderLink']))
-        # else:
-        #     for i in rs:
-        #         print(i['name'])
         for index,item in enumerate(rs):
-            print('%d.%s'%(index,item['name']))
+            print('%d|%s|%s'%(index,item['name'],item['url']))
+
+    def getBtlink(self,url):
+        spider=Spider()
+        rs=spider.getMagnet(url)
+        # for item in rs:
+        #     print(item['thunderLink'])
+        #     return
+        print(rs[0]['thunderLink'])
 
 
 class test:
@@ -135,7 +135,8 @@ def isUrlCode(code):
         return False
 
 if __name__ == '__main__':
-    if len(sys.argv)>=2:
+    if len(sys.argv)==2:
+        #电影名
         movie=sys.argv[1]
         if movie=='test':
             te=test()
@@ -145,5 +146,12 @@ if __name__ == '__main__':
             movie=urllib.parse.unquote(movie)
             movieHandler=Movie()
             movieHandler.getMovie(movie)
+    if len(sys.argv)==3:
+        #url bt
+        url=sys.argv[1]
+        cmd=sys.argv[2]
+        movieHandler=Movie()
+        movieHandler.getBtlink(url)
+
 
     
