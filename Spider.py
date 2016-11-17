@@ -1,9 +1,31 @@
 #coding=utf-8
+"""
+usage:
+python spider.py mv 西瓜
+
+source: ~/code/python/scrap/Movie
+"""
 from bs4 import BeautifulSoup
 import requests
 import urllib.parse
 import re
 import sys
+from selenium import webdriver
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s: %(message)s',
+    datefmt='%y-%m-%d %H:%M:%S',
+    filename='spider.log',
+    filemode='a'
+    )
+
+def click():
+    driver = webdriver.PhantomJS(executable_path="/Users/xj/program/phantomjs-2.1.1-macosx/bin/phantomjs")
+    driver.get("http://so.loldytt.com/search.asp")
+    driver.find_element_by_xpath("/html/body/center/div[2]/div[2]/form/input[2]").click()
+    driver.close()
 
 
 class Spider:
@@ -19,24 +41,35 @@ class Spider:
         html=requests.post(url,params=param)
         bsobj=BeautifulSoup(html.text, "html.parser")
         htmlContent=Transfer.toUtf8(html.text)
-
+        # print(htmlContent)
         movieCount=self.__getNumOfMovie(htmlContent)
+        if movieCount==None:
+            print("获取电影失败，可能是目标网站无响应")
+            logging.error("获取电影失败，可能是目标网站无响应")
+            return []
         print('为你找到了%d部电影～回复序号获得迅雷链接'%movieCount)
-        urllist=[]
+        
         n=movieCount//20
         m=movieCount%20
         if m>0:
             n=n+1
+
+        urllist=[]
         for i in range(1,n+1):
             param={'keyword':Transfer.toGb2312(movie),'page':i}
             html=requests.post(url,params=param)
             bsobj=BeautifulSoup(html.text, "html.parser")
             htmlContent=Transfer.toUtf8(html.text)
             urllist.append(self.__matchUrl(htmlContent))
+        logging.debug("movie info collected")
+
         rs=[]
         for i in urllist:
+            # print(i)
             for j in i:
                 rs.append(j)
+        # print("rs->")
+        # print(rs)
         return rs
 
     def __matchMagnet(self,text):
@@ -49,12 +82,15 @@ class Spider:
 
     def getMagnet(self,url):
         html=requests.get(url)
+        # logging.debug("html:%s"%(Transfer.toUtf8(html.text)))
         bsobj=BeautifulSoup(Transfer.toUtf8(html.text), "html.parser")
         lst=[]
         for i in bsobj.find_all('a',{'target':'_self'}):
             rs=self.__matchMagnet(str(i))
             if rs!='':
-                lst.append({'name':i.get_text(),'thunderLink':rs})
+                tmp={'name':i.get_text(),'thunderLink':rs}
+                logging.debug("magnet:%s"%(tmp))
+                lst.append(tmp)
         return lst
 
     def __matchUrl(self,html):
@@ -65,7 +101,10 @@ class Spider:
         lst=[]
         for i in match:
             tmpstr=i.replace('</a>','')
-            url=urlPattern.match(tmpstr).group()
+            try:
+                url=urlPattern.match(tmpstr).group()
+            except Exception as e:
+                logging.warning("无法解析:%s"%tmpstr)
             mvName=tmpstr.replace(url+'">','')
             lst.append({'name':mvName,'url':url})
         return lst
@@ -88,8 +127,11 @@ class Movie:
     
     def getMovie(self,movie):
         spider=Spider()
+        logging.info("spider running...")
         rs=spider.search(movie)
+        # print(rs)
         for index,item in enumerate(rs):
+            logging.debug('%d|%s|%s'%(index,item['name'],item['url']))
             print('%d|%s|%s'%(index,item['name'],item['url']))
 
     def getBtlink(self,url):
@@ -121,10 +163,22 @@ class test:
 
 class Transfer:
     def toGb2312(text):
-        return text.encode('gb2312')
+        try:
+            return text.encode('gb2312')
+        except Exception as e:
+            logging.warning(e)
+            return ""
+        
 
     def toUtf8(text):
-        return text.encode('ISO-8859-1').decode('gb2312')
+        try:
+            return text.encode('ISO-8859-1').decode('gb2312')
+            # return text.encode('ISO-8859-1').decode('utf-8')
+            # return text.encode('ISO-8859-1').decode('utf-8')
+        except Exception as e:
+            logging.warning(e)
+            return text
+        
 
 def isUrlCode(code):
     #有问题
@@ -135,6 +189,7 @@ def isUrlCode(code):
         return False
 
 if __name__ == '__main__':
+    # click()
     if len(sys.argv)==2:
         #电影名
         movie=sys.argv[1]
@@ -144,12 +199,15 @@ if __name__ == '__main__':
             # te.test_isUrlCode()
         else:
             movie=urllib.parse.unquote(movie)
+            logging.info("start search, movie:%s"%(movie))
             movieHandler=Movie()
             movieHandler.getMovie(movie)
-    if len(sys.argv)==3:
+            logging.info("finish search...")
+    elif len(sys.argv)==3:
         #url bt
         url=sys.argv[1]
         cmd=sys.argv[2]
+        logging.info("start get btlink: targetUrl->%s  cmd->%s"%(url,cmd))
         movieHandler=Movie()
         movieHandler.getBtlink(url)
 
