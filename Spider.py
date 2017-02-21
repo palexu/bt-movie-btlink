@@ -12,13 +12,14 @@ import re
 import sys
 from selenium import webdriver
 import logging
+import time
 
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s: %(message)s',
     datefmt='%y-%m-%d %H:%M:%S',
     filename='spider.log',
-    filemode='a'
+    filemode='w'
     )
 
 def click():
@@ -38,7 +39,17 @@ class Spider:
     def search(self,movie):
         param={'keyword':Transfer.toGb2312(movie)}
         url='http://so.loldytt.com/search.asp'
-        html=requests.post(url,params=param)
+        session=requests.Session()
+        print(int(time.time()))
+        html=session.post(url,params=param,cookies={
+            'ASPSESSIONIDASQCDTCQ':'LFAEFOLBMHPGIFBDENBHNIDL',
+            'Hm_lpvt_8192201e058ad8d44315a4cb412f81f3':str(int(time.time()-20)),
+            'Hm_lvt_8192201e058ad8d44315a4cb412f81f3':'1487672122,1487685089,1487685689',
+            'adClass0803':'28',
+            'cscpvrich_fidx':'4',
+            'AD_Time_480':'idx:0', 
+            })
+        html=session.post(url,params=param)
         bsobj=BeautifulSoup(html.text, "html.parser")
         htmlContent=Transfer.toUtf8(html.text)
         # print(htmlContent)
@@ -103,10 +114,10 @@ class Spider:
             tmpstr=i.replace('</a>','')
             try:
                 url=urlPattern.match(tmpstr).group()
+                mvName=tmpstr.replace(url+'">','')
+                lst.append({'name':mvName,'url':url})
             except Exception as e:
                 logging.warning("无法解析:%s"%tmpstr)
-            mvName=tmpstr.replace(url+'">','')
-            lst.append({'name':mvName,'url':url})
         return lst
 
     def __getNumOfMovie(self,html):
@@ -130,9 +141,11 @@ class Movie:
         logging.info("spider running...")
         rs=spider.search(movie)
         # print(rs)
+        content=''
         for index,item in enumerate(rs):
             logging.debug('%d|%s|%s'%(index,item['name'],item['url']))
-            print('%d|%s|%s'%(index,item['name'],item['url']))
+            content+='%d|%s|%s\n'%(index,item['name'],item['url'])
+        return content
 
     def getBtlink(self,url):
         spider=Spider()
@@ -140,7 +153,7 @@ class Movie:
         # for item in rs:
         #     print(item['thunderLink'])
         #     return
-        print(rs[0]['thunderLink'])
+        return rs[0]['thunderLink']
 
 
 class test:
@@ -201,7 +214,7 @@ if __name__ == '__main__':
             movie=urllib.parse.unquote(movie)
             logging.info("start search, movie:%s"%(movie))
             movieHandler=Movie()
-            movieHandler.getMovie(movie)
+            print(movieHandler.getMovie(movie))
             logging.info("finish search...")
     elif len(sys.argv)==3:
         #url bt
@@ -209,7 +222,7 @@ if __name__ == '__main__':
         cmd=sys.argv[2]
         logging.info("start get btlink: targetUrl->%s  cmd->%s"%(url,cmd))
         movieHandler=Movie()
-        movieHandler.getBtlink(url)
+        print(movieHandler.getBtlink(url))
 
 
     
