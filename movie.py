@@ -47,6 +47,7 @@ class Spider:
 
     def search(self,movie):
         session=requests.Session()
+
         html=session.post(self.url,params={'keyword':Transfer.toGb2312(movie)})
 
         bsobj=BeautifulSoup(html.text, "html.parser")
