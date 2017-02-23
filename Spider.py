@@ -10,7 +10,7 @@ import requests
 import urllib.parse
 import re
 import sys
-from selenium import webdriver
+# from selenium import webdriver
 import logging
 import time
 
@@ -22,37 +22,55 @@ logging.basicConfig(
     filemode='w'
     )
 
-def click():
-    driver = webdriver.PhantomJS(executable_path="/Users/xj/program/phantomjs-2.1.1-macosx/bin/phantomjs")
-    driver.get("http://so.loldytt.com/search.asp")
-    driver.find_element_by_xpath("/html/body/center/div[2]/div[2]/form/input[2]").click()
-    driver.close()
-
-
 class Spider:
-    headers={"User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:47.0) Gecko/20100101 Firefox/47.0",
-        "Accept-Language":"zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",
-        "Accept-Encoding":"gzip, deflate",
-        "Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        }
+    def __init__(self):
+        self.url='http://so.loldytt.com/search.asp'
+        try:
+            #尝试通过wangan参数来通过验证
+            html=requests.get(self.url+'?keyword=hello')
+            # 获取网安参数
+            pre_content_has_url=html.text
+            pattern_wangan=re.compile(r'"\S+?"')
+            match_wangan=pattern_wangan.findall(pre_content_has_url)
+            redir_url=''
+            for i in match_wangan:
+                redir_url+=i
+            redir_url=redir_url.replace('"','')
+            wangan=redir_url.split('&__wangan=')[1]
+            logging.debug('wangan:'+wangan)
+            html=requests.get(self.url+'?keyword=hello&__wangan='+wangan)
+        except Exception as e:
+            logging.info(e)
+            logging.info('该异常出现的原因：可能是之前建立的链接未中断')
+        
 
     def search(self,movie):
-        param={'keyword':Transfer.toGb2312(movie)}
-        url='http://so.loldytt.com/search.asp'
         session=requests.Session()
-        print(int(time.time()))
-        html=session.post(url,params=param,cookies={
-            'ASPSESSIONIDASQCDTCQ':'LFAEFOLBMHPGIFBDENBHNIDL',
-            'Hm_lpvt_8192201e058ad8d44315a4cb412f81f3':str(int(time.time()-20)),
-            'Hm_lvt_8192201e058ad8d44315a4cb412f81f3':'1487672122,1487685089,1487685689',
-            'adClass0803':'28',
-            'cscpvrich_fidx':'4',
-            'AD_Time_480':'idx:0', 
-            })
-        html=session.post(url,params=param)
+        # header={"User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:47.0) Gecko/20100101 Firefox/47.0",
+        # "Accept-Language":"zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",
+        # "Accept-Encoding":"gzip, deflate",
+        # "Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        # "Host":"so.loldytt.com",
+        # "Referer":"http://so.loldytt.com/search.asp",
+        # "Upgrade-Insecure-Requests":"1",
+        # "Connection":"keep-alive",
+        # "Cache-Control":"max-age=0",
+        # }
+        # cookie={
+        #     'ASPSESSIONIDASQCDTCQ':'DHHKAHGCPJBEMBDNDPKCHOLE',
+        #     'Hm_lpvt_8192201e058ad8d44315a4cb412f81f3':str(int(time.time()-20)),
+        #     'Hm_lvt_8192201e058ad8d44315a4cb412f81f3':'1487672122,1487685089,1487685689',
+        #     'adClass0803':'28',
+        #     'cscpvrich_fidx':'4',
+        #     'AD_Time_480':'idx:0', 
+        #     'BAIDUID':'00E1DD2EDB1D4B32680F1B32D041FC90',
+        #     'LDID':'00E1DD2EDB1D4B32680F1B32D041FC90',
+        #     }
+
+        html=session.post(self.url,params={'keyword':Transfer.toGb2312(movie)})
+
         bsobj=BeautifulSoup(html.text, "html.parser")
         htmlContent=Transfer.toUtf8(html.text)
-        # print(htmlContent)
         movieCount=self.__getNumOfMovie(htmlContent)
         if movieCount==None:
             print("获取电影失败，可能是目标网站无响应")
@@ -68,7 +86,7 @@ class Spider:
         urllist=[]
         for i in range(1,n+1):
             param={'keyword':Transfer.toGb2312(movie),'page':i}
-            html=requests.post(url,params=param)
+            html=requests.post(self.url,params=param)
             bsobj=BeautifulSoup(html.text, "html.parser")
             htmlContent=Transfer.toUtf8(html.text)
             urllist.append(self.__matchUrl(htmlContent))
